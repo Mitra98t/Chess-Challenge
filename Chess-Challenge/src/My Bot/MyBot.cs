@@ -160,8 +160,7 @@ public class MyBot : IChessBot
     {
         Move[] moves = orderMoves(board.GetLegalMoves());
         //random number
-        Random rnd = new Random();
-        Move best_move = moves[rnd.Next(moves.Length)];
+        Move best_move = moves[0];
 
         int score = -100000;
         foreach (Move move in moves)
