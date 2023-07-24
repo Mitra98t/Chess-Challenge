@@ -11,17 +11,17 @@ public class MyBot : IChessBot
     List<Move> LastMoves = new();
     double endgameWeight = 0;
     Board board;
+    int piecesOnBoard = 32;
     public Move Think(Board board, Timer timer)
     {
         this.board = board;
 
         // return StartSearch(3);
-        // Console.WriteLine("Endgame Weight: " + endgameWeight);
         //Low on time
-        int piecesLeft = BitboardHelper.GetNumberOfSetBits(board.AllPiecesBitboard);
-        if (piecesLeft < 4)
+        piecesOnBoard = BitboardHelper.GetNumberOfSetBits(board.AllPiecesBitboard);
+        if (piecesOnBoard < 4)
             return StartSearch(5);
-        if (piecesLeft < 8)
+        if (piecesOnBoard < 8)
             return StartSearch(4);
         else
             return StartSearch(3);
@@ -38,9 +38,12 @@ public class MyBot : IChessBot
             PieceType capturePieceType = board.GetPiece(move.TargetSquare).PieceType; // Piece i'm capturing
 
             //Encourage Piece Development
-            if (movePieceType == PieceType.Knight || movePieceType == PieceType.Bishop)
+            if (movePieceType == PieceType.Knight || movePieceType == PieceType.Bishop || movePieceType == PieceType.Rook)
                 moveScoreGuess += 80;
 
+            // Encourage Castling
+            if (move.IsCastles)
+                moveScoreGuess += 100;
 
             if (capturePieceType != PieceType.None)
                 moveScoreGuess = 10 * pieceValues[(int)capturePieceType] - pieceValues[(int)movePieceType];
@@ -86,7 +89,7 @@ public class MyBot : IChessBot
                 // value += multiplier * pieceValues[(int)piece.PieceType];
             }
         }
-        value += ForceKingToCornerEval();
+        value += ForceKingToCornerEval() + KingSafetyEvaluation();
         return value * (board.IsWhiteToMove ? 1 : -1);
     }
 
@@ -173,15 +176,20 @@ public class MyBot : IChessBot
     private int MobilityEvaluation(Piece piece)
     {
         int value;
+        int slidingPieceControl = BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetSliderAttacks(piece.PieceType, piece.Square, board));
         switch (piece.PieceType)
         {
             case PieceType.Knight:
                 value = BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetKnightAttacks(piece.Square)) * 10;
                 break;
-            case PieceType.Queen:
-            case PieceType.Rook:
             case PieceType.Bishop:
-                value = BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetSliderAttacks(piece.PieceType, piece.Square, board)) * (20 - pieceValues[(int)piece.PieceType] / 100);
+                value = slidingPieceControl * 10;
+                break;
+            case PieceType.Queen:
+                value = slidingPieceControl * 15;
+                break;
+            case PieceType.Rook:
+                value = slidingPieceControl * 17;
                 break;
             default:
                 value = 0;
@@ -189,6 +197,7 @@ public class MyBot : IChessBot
         }
         return value;
     }
+
 
     private int ForceKingToCornerEval()
     {
@@ -226,6 +235,17 @@ public class MyBot : IChessBot
     private bool WillBeRepetition(Move move)
     {
         return LastMoves.Count >= 2 && LastMoves[^2].StartSquare == move.StartSquare && LastMoves[^2].TargetSquare == move.TargetSquare && LastMoves[^3].StartSquare == LastMoves[^1].StartSquare && LastMoves[^3].TargetSquare == LastMoves[^1].TargetSquare;
+    }
+
+    private int KingSafetyEvaluation()
+    {
+        int evaluation = 0;
+        int targetRank = board.IsWhiteToMove ? 0 : 7;
+        Square kingSquare = board.GetKingSquare(board.IsWhiteToMove);
+        if (kingSquare.Rank == targetRank)
+            evaluation += 50 + Math.Abs(4 - kingSquare.File) * 20;
+
+        return (int)(evaluation * (piecesOnBoard / 50));
     }
 
 }
