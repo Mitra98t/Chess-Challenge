@@ -90,6 +90,8 @@ public class MyBot : IChessBot
             }
         }
         value += ForceKingToCornerEval() + KingSafetyEvaluation();
+        if(board.IsInCheckmate())
+            value += 1000000;
         return value * (board.IsWhiteToMove ? 1 : -1);
     }
 
@@ -201,7 +203,7 @@ public class MyBot : IChessBot
 
     private int ForceKingToCornerEval()
     {
-        endgameWeight = board.PlyCount * 0.001 + (32 - BitboardHelper.GetNumberOfSetBits(board.AllPiecesBitboard)) * 0.05;
+        endgameWeight = (32-piecesOnBoard) / 32.0;
         Square friendlyKingSquare = board.GetKingSquare(board.IsWhiteToMove);
         Square opponentKingSquare = board.GetKingSquare(!board.IsWhiteToMove);
 
@@ -221,7 +223,7 @@ public class MyBot : IChessBot
         // evaluation += 14 - dist2;
         evaluation += 14 - (Math.Abs(friendlyKingSquare.File - opponentKingSquare.File) + Math.Abs(friendlyKingSquare.Rank - opponentKingSquare.Rank));
 
-        return (int)(evaluation * 10 * endgameWeight);
+        return (int)(evaluation * 20 * endgameWeight);
     }
 
     private void AddToListMoves(Move move)
